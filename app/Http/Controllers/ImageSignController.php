@@ -8,17 +8,28 @@ use App\Models\PictureSign;
 use Illuminate\Support\Str;
 use Intervention\Image\Facades\Image;
 use Intervention\Image\Imagick\Font;
+use Johntaa\Arabic\I18N_Arabic;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class ImageSignController extends Controller
 {
 
+    /**
+     * @var I18N_Arabic
+     */
+    private $arabic;
+
     public function sign()
     {
-        $attributes = request()->validate([
-            'country'  => 'required|string|min:3|max:50',
-            'fullname' => 'required|string|min:3|max:50',
-        ]);
+//        $attributes = request()->validate([
+//            'country'  => 'required|string|min:3|max:50',
+//            'fullname' => 'required|string|min:3|max:50',
+//        ]);
+
+        $attributes = [
+            'fullname' => 'الإسم',
+            'country'  => 'البلد\المدينة',
+        ];
 
         $picture = new PictureSign();
         $picture->country = $attributes['country'];
@@ -28,12 +39,13 @@ class ImageSignController extends Controller
         $picture->hash = $picture->id . '-' . Str::random(32);
         $picture->save();
 
-
         $img = Image::make(public_path('certificate.jpg'));
-        $img->text("Country: " . $picture->country, 120, 100, $this->mutateFont());
-        $img->text("Fullname: " . $picture->fullname, 120, 200, $this->mutateFont());
-        $img->text("Date: " . $picture->created_at->toDateString(), 120, 300, $this->mutateFont());
-        $img->text("ID: {$picture->id}", 120, 400, $this->mutateFont());
+        $img->text($this->toArabic($picture->fullname), 830, 557, $this->mutateFont());
+        $img->text($this->toArabic($picture->country), 740, 625, $this->mutateFont());
+
+        $serial = 100 + $picture->id;
+        $img->text($serial . '/' . $picture->created_at->toDateString(), 600, 675, $this->mutateFont());
+
         $img->save($path = public_path($picture->getPath()));
 
         return redirect()->route('show', $picture->hash);
@@ -59,7 +71,15 @@ class ImageSignController extends Controller
     {
         return function (Font $font) {
             $font->file(resource_path('fonts/Amiri-Regular.ttf'));
-            $font->size(64);
+            $font->size(32);
+            $font->align('right');
         };
+    }
+
+    protected function toArabic(string $fullname)
+    {
+        $arabic = new I18N_Arabic('Glyphs');
+
+        return $arabic->utf8Glyphs($fullname);
     }
 }
